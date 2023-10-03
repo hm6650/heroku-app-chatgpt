@@ -31,7 +31,7 @@ random_number = ''.join(random.choices('0123456789', k=10))
 # Create the filename by appending ".json" to the random number
 filename = f"{random_number}.json"
 # Set the API key as an environment variable
-os.environ['OPENAI_API_KEY'] = "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"
+API_KEY = "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"
 
 html_content = """
 <!DOCTYPE html>
@@ -174,7 +174,6 @@ html_content = """
 
 """
 
-# Define a class for handling HTTP requests
 class ChatbotRequestHandler(http.server.BaseHTTPRequestHandler):
     # Add a variable to store the user_id
     user_id = None
@@ -188,6 +187,10 @@ class ChatbotRequestHandler(http.server.BaseHTTPRequestHandler):
         elif self.path.startswith('/store_user_id/'):
             user_id = self.path[len('/store_user_id/'):]
             ChatbotRequestHandler.user_id = user_id  # Store the user_id as an instance variable
+
+            # Create a unique filename for each user based on their user_id
+            filename = f"{user_id}.json"
+            
             self.send_response(200)
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
@@ -203,6 +206,9 @@ class ChatbotRequestHandler(http.server.BaseHTTPRequestHandler):
             {"role": "system", "content": "You are a creative assistant that helps with creative writing."},
             {"role": "user", "content": user_input}
         ]
+
+        # Use the stored user_id to create a unique filename
+        filename = f"{ChatbotRequestHandler.user_id}.json"
     
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -210,7 +216,7 @@ class ChatbotRequestHandler(http.server.BaseHTTPRequestHandler):
             temperature=0.7,
             max_tokens=2000,
             stop=None,
-            api_key=os.environ['OPENAI_API_KEY']
+            api_key=API_KEY
         )
         chatbot_response = response.choices[0].message["content"].strip()
         chatbot_response = chatbot_response.replace('\n', '<br>')
@@ -233,7 +239,7 @@ class ChatbotRequestHandler(http.server.BaseHTTPRequestHandler):
         # Convert the updated data to JSON
         updated_json_data = json.dumps(existing_data_dict, indent=4)
     
-        # Upload the updated data back to the blob
+        # Upload the updated data back to the blob with the unique filename
         blob_client.upload_blob(updated_json_data, overwrite=True)
     
         # Send the chatbot response as JSON
@@ -241,6 +247,7 @@ class ChatbotRequestHandler(http.server.BaseHTTPRequestHandler):
         self.send_header('Content-type', 'application/json')
         self.end_headers()
         self.wfile.write(json.dumps({'response': chatbot_response}).encode('utf-8'))
+
 
 def main():
     # Get the port from the PORT environment variable (provided by Heroku)
